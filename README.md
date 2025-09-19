@@ -1,511 +1,611 @@
-# API Testing Guide - New Implementations
+# Product Management API Documentation
 
-This guide covers all the new endpoints and features implemented for product location/condition filtering and seller inventory tracking.
+This document provides a detailed overview of the API endpoints for managing products, categories, inventory, and related resources.
 
-## 🔐 Authentication
+**Base URL**: `/`
 
-All protected endpoints require JWT token in the Authorization header:
-```
-Authorization: Bearer <your_jwt_token>
-```
+**Authentication**: Most endpoints require a JWT Bearer token in the `Authorization` header. Endpoints marked as `Public` do not require authentication. Role-based access control is specified for each endpoint where applicable.
 
-## 📦 Product Endpoints with Location & Condition Filtering
+---
 
-### 1. Get Products with Filters
-**Endpoint:** `GET /products`
-**Access:** Public
+## Table of Contents
+1. [Categories API](#categories-api)
+2. [Products API](#products-api)
+3. [Public Products API](#public-products-api)
+4. [Product Requests API](#product-requests-api)
+5. [Reviews API](#reviews-api)
+6. [Inventory API](#inventory-api)
+7. [Warehouses API](#warehouses-api)
 
-**New Query Parameters:**
-- `location` - Filter by product location (e.g., "Accra", "Kumasi")
-- `condition` - Filter by condition: `FRESH`, `DRIED`, `PROCESSED`, `ORGANIC`
+---
 
-**Example Requests:**
-```bash
-# Get all products
-GET /products
+## Categories API
 
-# Get fresh products
-GET /products?condition=FRESH
+Base Path: `/categories`
 
-# Get products from Accra
-GET /products?location=Accra
-
-# Get dried products from Tamale
-GET /products?condition=DRIED&location=Tamale
-
-# Get products with pagination and filters
-GET /products?page=1&limit=10&condition=ORGANIC&location=Kumasi
-
-# Combine with existing filters
-GET /products?condition=FRESH&minPrice=10&maxPrice=50&search=tomato
-```
-
-### 2. Create Product with Location & Condition
-**Endpoint:** `POST /products`
-**Access:** Authenticated users
-**Content-Type:** `multipart/form-data`
-
-**New Fields in Request Body:**
-- `location` (optional) - Product location
-- `condition` (optional) - Product condition (default: "FRESH")
-
-**Example Request:**
-```bash
-POST /products
-Content-Type: multipart/form-data
-
-{
-  "name": "Fresh Tomatoes",
-  "description": "Locally grown fresh tomatoes",
-  "primaryCategoryId": 2,
-  "price": 15.50,
-  "stockQuantity": 100,
-  "location": "Kumasi, Ashanti",
-  "condition": "FRESH",
-  "currency": "GHS"
-}
-```
-
-## 🏪 Seller Inventory Tracking Endpoints
-
-## 📝 Product Requests (Unified Agent & Seller Submissions)
-
-### 1. Create Product Request
-**Endpoint:** `POST /product-requests`
-**Access:** Authenticated agents and sellers
-**Content-Type:** `multipart/form-data`
-
-**Request Body:**
-```json
-{
-  "name": "Fresh Organic Tomatoes",
-  "description": "Locally grown organic tomatoes",
-  "category": "Vegetables",
-  "price": 25.00,
-  "currency": "GHS",
-  "stockQuantity": 100,
-  "location": "Kumasi, Ashanti",
-  "condition": "FRESH"
-}
-```
-
-**Example Requests:**
-```bash
-# Agent creating a product request
-POST /product-requests
-Authorization: Bearer <agent_jwt_token>
-Content-Type: multipart/form-data
-
-{
-  "name": "Premium Rice",
-  "category": "Grains",
-  "price": 45.00,
-  "stockQuantity": 200,
-  "location": "Tamale, Northern",
-  "condition": "DRIED",
-  "farmerId": 123
-}
-
-# Seller creating a product request
-POST /product-requests
-Authorization: Bearer <seller_jwt_token>
-Content-Type: multipart/form-data
-
-{
-  "name": "Organic Honey",
-  "category": "Processed Foods",
-  "price": 35.00,
-  "stockQuantity": 50,
-  "location": "Ho, Volta",
-  "condition": "ORGANIC"
-}
-```
-
-### 2. Get My Product Requests
-**Endpoint:** `GET /product-requests/my-requests`
-**Access:** Authenticated agents and sellers
-
-**Query Parameters:**
-- `page` (optional) - Page number
-- `limit` (optional) - Items per page
-- `status` (optional) - Filter by status: `PENDING`, `APPROVED`, `REJECTED`, `IN_REVIEW`, `COMPLETED`
-- `category` (optional) - Filter by category
-- `location` (optional) - Filter by location
-- `condition` (optional) - Filter by condition
-
-**Example Requests:**
-```bash
-# Get all my requests
-GET /product-requests/my-requests
-
-# Get pending requests only
-GET /product-requests/my-requests?status=PENDING
-
-# Get requests with filters
-GET /product-requests/my-requests?condition=ORGANIC&location=Kumasi&page=1&limit=10
-```
-
-### 3. Get All Product Requests (Admin)
-**Endpoint:** `GET /product-requests`
-**Access:** Admin only
-
-**Query Parameters:**
-- `page`, `limit` - Pagination
-- `status` - Filter by status
-- `category`, `location`, `condition` - Filter by product attributes
-- `requestType` - Filter by requester type: `AGENT` or `SELLER`
-- `agentId`, `sellerId`, `farmerId` - Filter by specific requester
-- `startDate`, `endDate` - Date range filtering
-
-**Example Requests:**
-```bash
-# Get all product requests
-GET /product-requests
-
-# Get pending requests from agents
-GET /product-requests?status=PENDING&requestType=AGENT
-
-# Get organic products from sellers
-GET /product-requests?condition=ORGANIC&requestType=SELLER
-
-# Get requests from specific location
-GET /product-requests?location=Accra&page=1&limit=20
-```
-
-### 4. Update Product Request Status (Admin)
-**Endpoint:** `PATCH /product-requests/:id/status`
-**Access:** Admin only
-
-**Request Body:**
-```json
-{
-  "status": "APPROVED",
-  "completionNotes": "Product approved and listed on marketplace"
-}
-```
-
-**Example Requests:**
-```bash
-# Approve a request
-PATCH /product-requests/123/status
-{
-  "status": "APPROVED",
-  "completionNotes": "Excellent product quality"
-}
-
-# Reject a request
-PATCH /product-requests/123/status
-{
-  "status": "REJECTED",
-  "rejectionReason": "Insufficient product information"
-}
-```
-
-## 🏪 Seller Inventory Tracking Endpoints
-
-### 1. Get My Inventory
-**Endpoint:** `GET /sellers/me/inventory`
-**Access:** Authenticated sellers only
-
-**Query Parameters:**
-- `page` (optional) - Page number (default: 1)
-- `limit` (optional) - Items per page (default: 20)
-- `location` (optional) - Filter by location
-- `condition` (optional) - Filter by condition
-- `lowStock` (optional) - Show only low stock items (true/false)
-
-**Example Requests:**
-```bash
-# Get all inventory
-GET /sellers/me/inventory
-
-# Get inventory with pagination
-GET /sellers/me/inventory?page=1&limit=10
-
-# Get low stock items only
-GET /sellers/me/inventory?lowStock=true
-
-# Get fresh products in my inventory
-GET /sellers/me/inventory?condition=FRESH
-
-# Get products from specific location
-GET /sellers/me/inventory?location=Accra
-
-# Combined filters
-GET /sellers/me/inventory?condition=ORGANIC&lowStock=true&page=1&limit=5
-```
-
-**Response Example:**
-```json
-{
-  "data": {
-    "items": [
-      {
-        "id": 1,
-        "name": "Premium Jasmine Rice",
-        "description": "High-quality fragrant jasmine rice",
-        "category": "Grains",
-        "price": 45.00,
-        "stockQuantity": 500,
-        "location": "Accra, Greater Accra",
-        "condition": "DRIED",
-        "stockStatus": "IN_STOCK",
-        "imagesUrls": ["https://..."],
-        "isActive": true,
-        "createdAt": "2024-01-15T10:00:00Z",
-        "updatedAt": "2024-01-15T10:00:00Z"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 50,
-      "totalPages": 3
-    }
+### Create Category
+- **Endpoint**: `POST /categories`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`
+- **Description**: Creates a new product category.
+- **Request Body**: `CreateCategoryDto`
+  ```json
+  {
+    "name": "string (required)",
+    "slug": "string (optional, auto-generated from name if not provided)",
+    "description": "string (optional)",
+    "imageUrl": "string (optional, URL)",
+    "parentId": "number (optional, ID of parent category)",
+    "sortOrder": "number (optional, default: 0)"
   }
-}
-```### 2
-. Get My Sales History
-**Endpoint:** `GET /sellers/me/sales`
-**Access:** Authenticated sellers only
+  ```
 
-**Query Parameters:**
-- `page` (optional) - Page number (default: 1)
-- `limit` (optional) - Items per page (default: 20)
-- `startDate` (optional) - Start date filter (ISO format: 2024-01-01)
-- `endDate` (optional) - End date filter (ISO format: 2024-01-31)
-- `status` (optional) - Order status filter
+### Get All Categories
+- **Endpoint**: `GET /categories`
+- **Permission**: `Public`
+- **Description**: Retrieves a paginated list of categories.
+- **Query Parameters**: `CategoryQueryParams`
+  - `page`: `number` (optional, default: 1)
+  - `limit`: `number` (optional, default: 20)
+  - `parentId`: `number` (optional, filter by parent category ID)
+  - `isActive`: `boolean` (optional, filter by active status)
+  - `search`: `string` (optional, search by name)
+  - `sortBy`: `string` (optional, enum: 'name', 'sortOrder', 'createdAt', 'updatedAt', default: 'sortOrder')
+  - `sortDir`: `string` (optional, enum: 'asc', 'desc', default: 'asc')
+  - `includeChildren`: `boolean` (optional, default: false)
+  - `includeProducts`: `boolean` (optional, default: false)
 
-**Example Requests:**
-```bash
-# Get all sales
-GET /sellers/me/sales
+### Get Category Hierarchy
+- **Endpoint**: `GET /categories/hierarchy`
+- **Permission**: `Public`
+- **Description**: Retrieves the full category tree structure.
 
-# Get sales with pagination
-GET /sellers/me/sales?page=1&limit=10
+### Get Categories with Product Counts
+- **Endpoint**: `GET /categories/with-product-counts`
+- **Permission**: `Public`
+- **Description**: Retrieves all categories along with the number of products in each.
 
-# Get sales for January 2024
-GET /sellers/me/sales?startDate=2024-01-01&endDate=2024-01-31
+### Get Category by ID
+- **Endpoint**: `GET /categories/:id`
+- **Permission**: `Public`
+- **Description**: Retrieves a single category by its ID.
+- **Path Parameters**:
+  - `id`: `number` (required) - The ID of the category.
 
-# Get delivered orders only
-GET /sellers/me/sales?status=DELIVERED
-
-# Get recent sales (last 7 days)
-GET /sellers/me/sales?startDate=2024-01-15&endDate=2024-01-22
-
-# Combined filters
-GET /sellers/me/sales?status=DELIVERED&startDate=2024-01-01&page=1&limit=5
-```
-
-**Response Example:**
-```json
-{
-  "data": {
-    "sales": [
-      {
-        "id": 123,
-        "orderNumber": "ORD-2024-001",
-        "status": "DELIVERED",
-        "totalAmount": 150.00,
-        "currency": "GHS",
-        "customer": {
-          "name": "John Doe",
-          "email": "john@example.com"
-        },
-        "items": [
-          {
-            "productId": 1,
-            "productName": "Fresh Tomatoes",
-            "quantity": 5,
-            "unitPrice": 15.00,
-            "totalPrice": 75.00,
-            "productImage": "https://..."
-          }
-        ],
-        "createdAt": "2024-01-15T10:00:00Z",
-        "updatedAt": "2024-01-15T12:00:00Z"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 25,
-      "totalPages": 2
-    }
+### Update Category
+- **Endpoint**: `PUT /categories/:id`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`
+- **Description**: Updates an existing category.
+- **Path Parameters**:
+  - `id`: `number` (required) - The ID of the category to update.
+- **Request Body**: `UpdateCategoryDto`
+  ```json
+  {
+    "name": "string (optional)",
+    "slug": "string (optional)",
+    "description": "string (optional)",
+    "imageUrl": "string (optional, URL)",
+    "parentId": "number (optional)",
+    "sortOrder": "number (optional)",
+    "isActive": "boolean (optional)"
   }
-}
-```
+  ```
 
-### 3. Get My Analytics
-**Endpoint:** `GET /sellers/me/analytics`
-**Access:** Authenticated sellers only
+### Delete Category
+- **Endpoint**: `DELETE /categories/:id`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`
+- **Description**: Deletes a category (soft delete).
+- **Path Parameters**:
+  - `id`: `number` (required) - The ID of the category to delete.
 
-**Query Parameters:**
-- `period` (optional) - Analysis period: `week`, `month`, `quarter`, `year` (default: month)
+---
 
-**Example Requests:**
-```bash
-# Get monthly analytics (default)
-GET /sellers/me/analytics
+## Products API
 
-# Get weekly analytics
-GET /sellers/me/analytics?period=week
+Base Path: `/products`
 
-# Get quarterly analytics
-GET /sellers/me/analytics?period=quarter
+### Create Product
+- **Endpoint**: `POST /products`
+- **Permission**: `ADMIN`
+- **Description**: Creates a new product.
+- **Request Body**: `multipart/form-data`
+  - `name`: `string (required)`
+  - `description`: `string (optional)`
+  - `primaryCategoryId`: `number (required)`
+  - `categoryIds`: `number[] (optional)`
+  - `price`: `number (optional)`
+  - `basePrice`: `number (optional)`
+  - `currency`: `string (optional, default: 'GHS')`
+  - `stockQuantity`: `number (optional)`
+  - `location`: `string (optional)`
+  - `condition`: `string (optional, enum: 'FRESH', 'DRIED', 'PROCESSED', 'ORGANIC', default: 'FRESH')`
+  - `isActive`: `boolean (optional, default: true)`
+  - `discountPercentage`: `number (optional)`
+  - `discountStartDate`: `Date (optional, ISO format)`
+  - `discountEndDate`: `Date (optional, ISO format)`
+  - `images`: `File[] (optional, up to 5 files)`
 
-# Get yearly analytics
-GET /sellers/me/analytics?period=year
-```
+### Get All Products
+- **Endpoint**: `GET /products`
+- **Permission**: `Public`
+- **Description**: Retrieves a paginated list of products.
+- **Query Parameters**: `ProductQueryParams`
+  - `page`: `number` (optional, default: 1)
+  - `limit`: `number` (optional, default: 20)
+  - `category`: `string` (optional, category slug)
+  - `isActive`: `boolean` (optional)
+  - `minPrice`: `number` (optional)
+  - `maxPrice`: `number` (optional)
+  - `location`: `string` (optional)
+  - `condition`: `string` (optional, enum: 'FRESH', 'DRIED', 'PROCESSED', 'ORGANIC')
+  - `search`: `string` (optional)
+  - `sortBy`: `string` (optional, enum: 'name', 'price', 'createdAt', 'stockQuantity')
+  - `sortDir`: `string` (optional, enum: 'asc', 'desc')
 
-**Response Example:**
-```json
-{
-  "data": {
-    "period": "month",
-    "summary": {
-      "totalProducts": 25,
-      "lowStockProducts": 3,
-      "totalOrders": 45,
-      "totalRevenue": 2500.00
-    },
-    "topProducts": [
-      {
-        "id": 1,
-        "name": "Fresh Tomatoes",
-        "imagesUrls": ["https://..."],
-        "totalSold": 150,
-        "totalRevenue": 750.00
-      }
-    ],
-    "recentOrders": [
-      {
-        "id": 123,
-        "orderNumber": "ORD-2024-001",
-        "status": "DELIVERED",
-        "totalAmount": 150.00,
-        "customerName": "John Doe",
-        "createdAt": "2024-01-15T10:00:00Z"
-      }
-    ]
+### Get Discounted Products
+- **Endpoint**: `GET /products/discounted`
+- **Permission**: `Public`
+- **Description**: Retrieves products that are currently discounted.
+- **Query Parameters**:
+  - `page`: `number` (optional, default: 1)
+  - `limit`: `number` (optional, default: 20)
+  - `minDiscount`: `number` (optional)
+
+### Get Weekly Specials
+- **Endpoint**: `GET /products/weekly-specials`
+- **Permission**: `Public`
+- **Description**: Retrieves products marked as weekly specials.
+- **Query Parameters**:
+  - `page`: `number` (optional, default: 1)
+  - `limit`: `number` (optional, default: 20)
+
+### Get Featured Products
+- **Endpoint**: `GET /products/featured`
+- **Permission**: `Public`
+- **Description**: Retrieves products marked as featured.
+- **Query Parameters**:
+  - `page`: `number` (optional, default: 1)
+  - `limit`: `number` (optional, default: 20)
+
+### Get Product by ID
+- **Endpoint**: `GET /products/:id`
+- **Permission**: Authenticated User
+- **Description**: Retrieves a single product by its ID, including review information.
+- **Path Parameters**:
+  - `id`: `number` (required) - The ID of the product.
+
+### Update Product
+- **Endpoint**: `PATCH /products/:id`
+- **Permission**: `ADMIN`
+- **Description**: Updates an existing product.
+- **Path Parameters**:
+  - `id`: `number` (required) - The ID of the product to update.
+- **Request Body**: `multipart/form-data` with fields from `UpdateProductDto`
+  - `name`: `string (optional)`
+  - `description`: `string (optional)`
+  - ... (and other fields from `CreateProductDto`)
+  - `images`: `File[] (optional, up to 5 files)`
+
+### Delete Product
+- **Endpoint**: `DELETE /products/:id`
+- **Permission**: `ADMIN`
+- **Description**: Deletes a product (soft delete).
+- **Path Parameters**:
+  - `id`: `number` (required) - The ID of the product to delete.
+
+### Add Product Image
+- **Endpoint**: `POST /products/:id/images`
+- **Permission**: `ADMIN`
+- **Description**: Adds an image URL to a product.
+- **Path Parameters**:
+  - `id`: `number` (required)
+- **Request Body**: `ProductImageDto`
+  ```json
+  {
+    "imageUrl": "string (required, URL)"
   }
-}
-```
+  ```
 
-## 🧪 Testing Scenarios
+### Remove Product Image
+- **Endpoint**: `DELETE /products/:id/images`
+- **Permission**: `ADMIN`
+- **Description**: Removes an image URL from a product.
+- **Path Parameters**:
+  - `id`: `number` (required)
+- **Request Body**: `ProductImageDto`
+  ```json
+  {
+    "imageUrl": "string (required, URL)"
+  }
+  ```
 
-### Scenario 1: Product Filtering by Location and Condition
-```bash
-# Test 1: Get all fresh products
-curl -X GET "http://localhost:3000/products?condition=FRESH"
+### Get Products with Reviews
+- **Endpoint**: `GET /products/with-reviews`
+- **Permission**: Authenticated User
+- **Description**: Retrieves products along with their review statistics.
+- **Query Parameters**: `ProductQueryParams` (same as `GET /products`)
 
-# Test 2: Get products from Accra
-curl -X GET "http://localhost:3000/products?location=Accra"
+### Manage Product Categories
+- **Endpoint**: `POST /products/:id/categories`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`
+- **Description**: Adds a product to one or more categories.
+- **Request Body**: `{ "categoryIds": [1, 2] }`
 
-# Test 3: Get dried products from Tamale with pagination
-curl -X GET "http://localhost:3000/products?condition=DRIED&location=Tamale&page=1&limit=5"
+- **Endpoint**: `DELETE /products/:id/categories`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`
+- **Description**: Removes a product from one or more categories.
+- **Request Body**: `{ "categoryIds": [1, 2] }`
 
-# Test 4: Combine with price filtering
-curl -X GET "http://localhost:3000/products?condition=ORGANIC&minPrice=20&maxPrice=100"
+- **Endpoint**: `PUT /products/:id/categories`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`
+- **Description**: Sets the categories for a product, replacing existing ones.
+- **Request Body**: `{ "categoryIds": [1, 2] }`
 
-# Test 5: Empty filter parameters (should return all products)
-curl -X GET "http://localhost:3000/products?location=&condition=&page=1&limit=10"
+---
 
-# Test 6: Mix of empty and valid parameters
-curl -X GET "http://localhost:3000/products?location=&condition=FRESH&page=1&limit=10"
-```
+## Public Products API
 
-### Scenario 2: Seller Inventory Management
-```bash
-# Test 1: Login as seller first
-curl -X POST "http://localhost:3000/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"email": "seller@example.com", "password": "password123"}'
+Base Path: `/public/products`
 
-# Test 2: Get inventory (use token from login)
-curl -X GET "http://localhost:3000/sellers/me/inventory" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+This controller provides public access to product information without authentication.
 
-# Test 3: Get low stock items
-curl -X GET "http://localhost:3000/sellers/me/inventory?lowStock=true" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+### Get All Public Products
+- **Endpoint**: `GET /public/products`
+- **Permission**: `Public`
+- **Description**: Retrieves a paginated list of active products.
+- **Query Parameters**:
+  - `page`, `limit`, `category`, `search`, `minPrice`, `maxPrice`, `sortBy`, `sortDir`
 
-# Test 4: Get sales history
-curl -X GET "http://localhost:3000/sellers/me/sales?startDate=2024-01-01" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+### Get Public Product by ID
+- **Endpoint**: `GET /public/products/:id`
+- **Permission**: `Public`
+- **Description**: Retrieves a single product by its ID.
+- **Path Parameters**:
+  - `id`: `number` (required)
 
-# Test 5: Get analytics
-curl -X GET "http://localhost:3000/sellers/me/analytics?period=month" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
+*(Other endpoints like `/weekly-specials`, `/featured`, `/discounted` are also available under `/public/products` and behave the same as their counterparts in the main `/products` controller.)*
 
-### Scenario 3: Create Product with New Fields
-```bash
-# Test: Create product with location and condition
-curl -X POST "http://localhost:3000/products" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Organic Carrots",
-    "description": "Fresh organic carrots from local farm",
-    "primaryCategoryId": 2,
-    "price": 25.00,
-    "stockQuantity": 50,
-    "location": "Ho, Volta",
-    "condition": "ORGANIC",
-    "currency": "GHS"
-  }'
-```
+---
 
-## 📊 Expected Data from Seeded Database
+## Product Requests API
 
-After running the seed, you should have products with these conditions and locations:
+Base Path: `/product-requests`
 
-**Locations:**
-- Accra, Greater Accra
-- Kumasi, Ashanti  
-- Tamale, Northern
-- Cape Coast, Central
-- Ho, Volta
-- Sekondi-Takoradi, Western
-- Bolgatanga, Upper East
-- Wa, Upper West
-- Koforidua, Eastern
-- Elmina, Central
-- Sunyani, Brong Ahafo
-- Techiman, Brong Ahafo
+### Create Product Request
+- **Endpoint**: `POST /product-requests`
+- **Permission**: `AGENT`, `SELLER`
+- **Description**: Allows agents and sellers to submit a request for a new product.
+- **Request Body**: `multipart/form-data` with fields from `CreateProductRequestDto`
+  - `name`: `string (required)`
+  - `description`: `string (optional)`
+  - `category`: `string (required)`
+  - `price`: `number (required)`
+  - `stockQuantity`: `number (required)`
+  - `location`: `string (optional)`
+  - `condition`: `string (optional)`
+  - `farmerId`: `number (optional, for Agents)`
+  - `images`: `File[] (optional, up to 5)`
 
-**Conditions:**
-- FRESH (vegetables, fruits)
-- DRIED (rice, fish, legumes)
-- PROCESSED (flour, oils, smoked items)
-- ORGANIC (honey, some vegetables)
+### Get My Product Requests
+- **Endpoint**: `GET /product-requests/my-requests`
+- **Permission**: `AGENT`, `SELLER`
+- **Description**: Retrieves product requests submitted by the current user.
+- **Query Parameters**:
+  - `page`, `limit`, `status`, `category`, `location`, `condition`
 
-## 🔍 Testing Tips
+### Get All Product Requests (Admin)
+- **Endpoint**: `GET /product-requests`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`
+- **Description**: Retrieves all product requests with filtering options.
+- **Query Parameters**: `ProductRequestQueryParams`
+  - `page`, `limit`, `status`, `category`, `location`, `condition`, `requestType`, `agentId`, `sellerId`, `farmerId`, `startDate`, `endDate`
 
-1. **Authentication**: Always test with proper JWT tokens
-2. **Pagination**: Test with different page sizes and page numbers
-3. **Filtering**: Test individual filters and combinations
-4. **Edge Cases**: Test with invalid parameters, empty results
-5. **Data Validation**: Test with invalid condition values or malformed dates
+### Get Product Request by ID
+- **Endpoint**: `GET /product-requests/:id`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`, `AGENT` (owner), `SELLER` (owner)
+- **Description**: Retrieves a single product request by ID.
+- **Path Parameters**:
+  - `id`: `number` (required)
 
-## 🚨 Common Issues to Test
+### Update Product Request
+- **Endpoint**: `PATCH /product-requests/:id`
+- **Permission**: `AGENT` (owner), `SELLER` (owner)
+- **Description**: Updates a pending product request.
+- **Path Parameters**:
+  - `id`: `number` (required)
+- **Request Body**: `multipart/form-data` with fields from `UpdateProductRequestDto`
+  - `name`, `description`, `category`, `price`, etc.
+  - `images`: `File[] (optional, up to 5)`
 
-1. **Invalid condition values** - Should return validation error
-2. **Invalid date formats** - Should return proper error message
-3. **Unauthorized access** - Should return 401 for protected endpoints
-4. **Non-existent seller** - Should return 404 for seller-specific endpoints
-5. **Empty results** - Should return empty array with proper pagination info
-6. **Empty filter parameters** - Should be ignored and return all results
-7. **Whitespace-only parameters** - Should be treated as empty and ignored
+### Delete Product Request
+- **Endpoint**: `DELETE /product-requests/:id`
+- **Permission**: `AGENT` (owner), `SELLER` (owner)
+- **Description**: Deletes a pending product request.
+- **Path Parameters**:
+  - `id`: `number` (required)
 
-## 📝 Notes
+### Update Product Request Status (Admin)
+- **Endpoint**: `PATCH /product-requests/:id/status`
+- **Permission**: `ADMIN`, `SUPER_ADMIN`
+- **Description**: Approves or rejects a product request.
+- **Path Parameters**:
+  - `id`: `number` (required)
+- **Request Body**: `UpdateProductRequestStatusDto`
+  ```json
+  {
+    "status": "string (required, enum: 'APPROVED', 'REJECTED')",
+    "rejectionReason": "string (optional, required if status is 'REJECTED')",
+    "completionNotes": "string (optional)"
+  }
+  ```
 
-- All monetary values are in GHS (Ghana Cedis)
-- Dates should be in ISO format (YYYY-MM-DD or full ISO string)
-- Stock status is automatically calculated: IN_STOCK (≥10), LOW_STOCK (<10), OUT_OF_STOCK (0)
-- Location filtering uses case-insensitive partial matching
-- Condition filtering requires exact match (case-sensitive)
-- **Empty filter parameters** (e.g., `?location=&condition=`) are automatically ignored
-- **Whitespace-only parameters** are treated as empty and ignored
-- Only meaningful filter values are applied to the query
+### Manage Product Request Images
+- **Endpoint**: `POST /product-requests/:id/images`
+- **Permission**: `AGENT` (owner), `SELLER` (owner)
+- **Description**: Adds images to a product request.
+- **Files**: `images` (up to 5)
+
+- **Endpoint**: `DELETE /product-requests/:id/images`
+- **Permission**: `AGENT` (owner), `SELLER` (owner)
+- **Description**: Removes an image from a product request.
+- **Request Body**: `{ "imageUrl": "string" }`
+
+---
+
+## Reviews API
+
+Base Path: `/reviews`
+
+### Create Review
+- **Endpoint**: `POST /reviews`
+- **Permission**: Authenticated User (Customer)
+- **Description**: Creates a review for a product.
+- **Request Body**: `CreateReviewDto`
+  ```json
+  {
+    "productId": "number (required)",
+    "rating": "number (required, 1-5)",
+    "comment": "string (optional)",
+    "orderId": "number (optional, for verification)"
+  }
+  ```
+
+### Get All Reviews
+- **Endpoint**: `GET /reviews`
+- **Permission**: Authenticated User
+- **Description**: Retrieves a list of reviews with filtering.
+- **Query Parameters**: `ReviewQueryParams`
+  - `productId`, `customerId`, `rating`, `isVerified`, `page`, `limit`, `sortBy`, `sortDir`
+
+### Get Review by ID
+- **Endpoint**: `GET /reviews/:id`
+- **Permission**: Authenticated User
+- **Description**: Retrieves a single review by ID.
+- **Path Parameters**:
+  - `id`: `number` (required)
+
+### Update Review
+- **Endpoint**: `PUT /reviews/:id`
+- **Permission**: Authenticated User (Owner)
+- **Description**: Updates a review written by the current user.
+- **Path Parameters**:
+  - `id`: `number` (required)
+- **Request Body**: `UpdateReviewDto`
+  ```json
+  {
+    "rating": "number (optional, 1-5)",
+    "comment": "string (optional)"
+  }
+  ```
+
+### Delete Review
+- **Endpoint**: `DELETE /reviews/:id`
+- **Permission**: Authenticated User (Owner)
+- **Description**: Deletes a review written by the current user.
+- **Path Parameters**:
+  - `id`: `number` (required)
+
+### Get Reviews for a Product
+- **Endpoint**: `GET /reviews/product/:productId`
+- **Permission**: Authenticated User
+- **Description**: Retrieves all reviews for a specific product.
+- **Path Parameters**:
+  - `productId`: `number` (required)
+- **Query Parameters**:
+  - `page`, `limit`, `sortBy`, `sortDir`
+
+### Get Review Statistics for a Product
+- **Endpoint**: `GET /reviews/product/:productId/stats`
+- **Permission**: Authenticated User
+- **Description**: Retrieves review statistics (average rating, count) for a product.
+- **Path Parameters**:
+  - `productId`: `number` (required)
+
+### Get My Reviews
+- **Endpoint**: `GET /reviews/customer/my-reviews`
+- **Permission**: Authenticated User (Customer)
+- **Description**: Retrieves all reviews written by the current user.
+- **Query Parameters**:
+  - `page`, `limit`
+
+---
+
+## Inventory API
+
+Base Path: `/inventory`
+
+### Create Inventory Record
+- **Endpoint**: `POST /inventory`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Creates an inventory record for a product in a warehouse.
+- **Request Body**: `CreateInventoryDto`
+  ```json
+  {
+    "productId": "number (required)",
+    "warehouseId": "number (required)",
+    "quantity": "number (required)",
+    "batchNumber": "string (optional)",
+    "expiryDate": "Date (optional, ISO format)"
+  }
+  ```
+
+### Get Inventory Record by ID
+- **Endpoint**: `GET /inventory/:id`
+- **Permission**: `ADMIN`, `MANAGER`, `AGENT`
+- **Description**: Retrieves a single inventory record.
+- **Path Parameters**:
+  - `id`: `number` (required)
+
+### Get Inventory by Product ID
+- **Endpoint**: `GET /inventory/product/:productId`
+- **Permission**: `ADMIN`, `MANAGER`, `AGENT`
+- **Description**: Retrieves all inventory records for a specific product across all warehouses.
+- **Path Parameters**:
+  - `productId`: `number` (required)
+
+### Update Inventory Record
+- **Endpoint**: `PUT /inventory/:id`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Updates an inventory record.
+- **Path Parameters**:
+  - `id`: `number` (required)
+- **Request Body**: `UpdateInventoryDto`
+  ```json
+  {
+    "quantity": "number (optional)",
+    "batchNumber": "string (optional)",
+    "expiryDate": "Date (optional, ISO format)"
+  }
+  ```
+
+### Transfer Inventory
+- **Endpoint**: `POST /inventory/:id/transfer`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Transfers a quantity of a product from one warehouse to another.
+- **Path Parameters**:
+  - `id`: `number` (required) - The ID of the source inventory record.
+- **Request Body**: `TransferInventoryDto`
+  ```json
+  {
+    "sourceWarehouseId": "number (required)",
+    "destinationWarehouseId": "number (required)",
+    "quantity": "number (required)",
+    "reason": "string (optional)"
+  }
+  ```
+
+### Adjust Inventory
+- **Endpoint**: `POST /inventory/:id/adjust`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Adjusts the quantity of an inventory record (e.g., for stock takes, damages).
+- **Path Parameters**:
+  - `id`: `number` (required)
+- **Request Body**: `AdjustInventoryDto`
+  ```json
+  {
+    "adjustmentType": "string (required, enum: 'INCREASE', 'DECREASE')",
+    "quantity": "number (required)",
+    "reason": "string (required)"
+  }
+  ```
+
+### Get Inventory Movements
+- **Endpoint**: `GET /inventory/movements`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Retrieves a log of all inventory movements (adjustments, transfers).
+- **Query Parameters**: `InventoryQueryParams`
+  - `page`, `limit`, `productId`, `warehouseId`, `startDate`, `endDate`
+
+### Get Inventory Summary
+- **Endpoint**: `GET /inventory/summary`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Retrieves a summary of inventory data.
+- **Query Parameters**: `InventorySummaryParams`
+  - `category`: `string` (optional)
+  - `groupBy`: `string` (optional, enum: 'warehouse', 'product', 'category', 'none')
+
+### Get Low Stock Items
+- **Endpoint**: `GET /inventory/analytics/low-stock`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Retrieves items that are below a certain stock threshold.
+- **Query Parameters**: `LowStockParams`
+  - `threshold`: `number` (optional, default: 20)
+  - `warehouseId`: `number` (optional)
+
+### Get Expiring Items
+- **Endpoint**: `GET /inventory/analytics/expiring`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Retrieves items that are expiring soon.
+- **Query Parameters**: `ExpiringItemsParams`
+  - `days`: `number` (optional, default: 30)
+  - `warehouseId`: `number` (optional)
+
+---
+
+## Warehouses API
+
+Base Path: `/warehouses`
+
+### Create Warehouse
+- **Endpoint**: `POST /warehouses`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Creates a new warehouse.
+- **Request Body**: `CreateWarehouseDto`
+  ```json
+  {
+    "name": "string (required)",
+    "address": "string (required)",
+    "region": "string (required)",
+    "district": "string (optional)",
+    "managerId": "number (optional)"
+  }
+  ```
+
+### Get All Warehouses
+- **Endpoint**: `GET /warehouses`
+- **Permission**: `Public`
+- **Description**: Retrieves a list of all warehouses.
+- **Query Parameters**: `WarehouseQueryParams`
+  - `page`, `limit`, `region`, `search`
+
+### Get Warehouse by ID
+- **Endpoint**: `GET /warehouses/:id`
+- **Permission**: `ADMIN`, `MANAGER`, `AGENT`
+- **Description**: Retrieves a single warehouse by ID.
+- **Path Parameters**:
+  - `id`: `number` (required)
+
+### Update Warehouse
+- **Endpoint**: `PUT /warehouses/:id`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Updates an existing warehouse.
+- **Path Parameters**:
+  - `id`: `number` (required)
+- **Request Body**: `UpdateWarehouseDto`
+  ```json
+  {
+    "name": "string (optional)",
+    "address": "string (optional)",
+    "region": "string (optional)",
+    "district": "string (optional)",
+    "managerId": "number (optional)"
+  }
+  ```
+
+### Delete Warehouse
+- **Endpoint**: `DELETE /warehouses/:id`
+- **Permission**: `ADMIN`
+- **Description**: Deletes a warehouse. Fails if the warehouse has inventory.
+- **Path Parameters**:
+  - `id`: `number` (required)
+
+### Get Warehouse Inventory
+- **Endpoint**: `GET /warehouses/:id/inventory`
+- **Permission**: `ADMIN`, `MANAGER`, `AGENT`
+- **Description**: Retrieves all inventory for a specific warehouse.
+- **Path Parameters**:
+  - `id`: `number` (required)
+
+### Get Warehouse Statistics
+- **Endpoint**: `GET /warehouses/analytics/stats`
+- **Permission**: `ADMIN`, `MANAGER`
+- **Description**: Retrieves statistics about warehouses (e.g., total inventory value per warehouse).
